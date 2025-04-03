@@ -1,25 +1,130 @@
 export class Heap {
   constructor(type = "max", array = []) {
-    this.heap = [];
     this.type = type;
+    this.heap = [...array];
     
     // If initial array is provided, build heap from it
     if (array.length > 0) {
-      this.buildHeap(array);
+      this.buildHeap();
     }
   }
   
-  // Build a heap from an existing array (more efficient than inserting one by one)
-  buildHeap(array) {
-    // Copy array to heap
-    this.heap = [...array];
+  getParentIndex(index) {
+    return Math.floor((index - 1) / 2);
+  }
+
+  getLeftChildIndex(index) {
+    return 2 * index + 1;
+  }
+
+  getRightChildIndex(index) {
+    return 2 * index + 2;
+  }
+
+  swap(index1, index2) {
+    const temp = this.heap[index1];
+    this.heap[index1] = this.heap[index2];
+    this.heap[index2] = temp;
+  }
+
+  shouldSwap(index1, index2) {
+    if (this.type === "max") {
+      return this.heap[index1] < this.heap[index2];
+    }
+    return this.heap[index1] > this.heap[index2];
+  }
+
+  heapifyUp(index, steps = []) {
+    let currentIndex = index;
     
-    // Heapify from the last non-leaf node up to the root
-    for (let i = Math.floor(this.heap.length / 2) - 1; i >= 0; i--) {
-      this.heapifyDownFrom(i);
+    while (currentIndex > 0) {
+      const parentIndex = this.getParentIndex(currentIndex);
+      
+      if (this.shouldSwap(parentIndex, currentIndex)) {
+        steps.push({
+          heap: [...this.heap],
+          activeIndex: currentIndex,
+          isComplete: false
+        });
+        
+        this.swap(parentIndex, currentIndex);
+        currentIndex = parentIndex;
+        
+        steps.push({
+          heap: [...this.heap],
+          activeIndex: currentIndex,
+          isComplete: false
+        });
+      } else {
+        break;
+      }
     }
     
-    return this.heap;
+    return steps;
+  }
+
+  heapifyDown(index, heapSize, steps = []) {
+    let currentIndex = index;
+    let maxIndex = index;
+    
+    while (true) {
+      const leftChild = this.getLeftChildIndex(currentIndex);
+      const rightChild = this.getRightChildIndex(currentIndex);
+      
+      if (leftChild < heapSize && this.shouldSwap(maxIndex, leftChild)) {
+        maxIndex = leftChild;
+      }
+      
+      if (rightChild < heapSize && this.shouldSwap(maxIndex, rightChild)) {
+        maxIndex = rightChild;
+      }
+      
+      if (maxIndex !== currentIndex) {
+        steps.push({
+          heap: [...this.heap],
+          activeIndex: maxIndex,
+          isComplete: false
+        });
+        
+        this.swap(currentIndex, maxIndex);
+        currentIndex = maxIndex;
+        
+        steps.push({
+          heap: [...this.heap],
+          activeIndex: currentIndex,
+          isComplete: false
+        });
+      } else {
+        break;
+      }
+    }
+    
+    return steps;
+  }
+
+  buildHeap() {
+    const steps = [];
+    const n = this.heap.length;
+    
+    // Start from the last non-leaf node and heapify down
+    for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+      steps.push({
+        heap: [...this.heap],
+        activeIndex: i,
+        isComplete: false
+      });
+      
+      this.heapifyDown(i, n, steps);
+    }
+    
+    // Add final state
+    steps.push({
+      heap: [...this.heap],
+      activeIndex: null,
+      isComplete: true
+    });
+    
+    return steps;
   }
 
   insert(value) {
@@ -35,180 +140,44 @@ export class Heap {
     return root;
   }
 
-  heapifyUp() {
-    let index = this.heap.length - 1;
-    while (index > 0) {
-      let parentIndex = Math.floor((index - 1) / 2);
-      if ((this.type === "max" && this.heap[index] > this.heap[parentIndex]) ||
-          (this.type === "min" && this.heap[index] < this.heap[parentIndex])) {
-        [this.heap[index], this.heap[parentIndex]] = [this.heap[parentIndex], this.heap[index]];
-        index = parentIndex;
-      } else {
-        break;
-      }
-    }
-  }
-
-  // Heapify down from a specific index
-  heapifyDownFrom(startIndex) {
-    let index = startIndex;
-    while (index < this.heap.length) {
-      let left = 2 * index + 1;
-      let right = 2 * index + 2;
-      let swapIndex = null;
-
-      if (left < this.heap.length) {
-        if ((this.type === "max" && this.heap[left] > this.heap[index]) ||
-            (this.type === "min" && this.heap[left] < this.heap[index])) {
-          swapIndex = left;
-        }
-      }
-
-      if (right < this.heap.length) {
-        if ((this.type === "max" && this.heap[right] > this.heap[swapIndex ?? index]) ||
-            (this.type === "min" && this.heap[right] < this.heap[swapIndex ?? index])) {
-          swapIndex = right;
-        }
-      }
-
-      if (swapIndex === null) break;
-      [this.heap[index], this.heap[swapIndex]] = [this.heap[swapIndex], this.heap[index]];
-      index = swapIndex;
-    }
-  }
-
-  // Standard heapify down from root
-  heapifyDown() {
-    this.heapifyDownFrom(0);
-  }
-  
-  // Perform heap sort and return sorted array
-  heapSort(trackSteps = false) {
-    // If not tracking steps, use the simple implementation
-    if (!trackSteps) {
-      const result = [];
-      const originalHeap = [...this.heap]; // Save original heap
-      
-      while (this.heap.length > 0) {
-        result.push(this.remove());
-      }
-      
-      // Restore original heap
-      this.heap = originalHeap;
-      
-      return result;
-    }
-    
-    // Implementation that tracks steps for visualization
+  heapSort() {
     const steps = [];
-    const descriptions = [];
-    const result = [...this.heap]; // Copy the heap to sort in-place
-    const heapSize = result.length;
+    const n = this.heap.length;
     
-    // First step: Initial array (unsorted)
-    steps.push({
-      heap: [...result],
-      sorted: [],
-      activeIndex: null,
-      isHeapified: false // Flag to indicate this is not yet a heap
-    });
-    descriptions.push("Initial unsorted array");
-    
-    // Build max/min heap
-    for (let i = Math.floor(heapSize / 2) - 1; i >= 0; i--) {
-      this.heapifyDownInPlace(result, i, heapSize, this.type);
-    }
-    
-    // After building heap
-    steps.push({
-      heap: [...result],
-      sorted: [],
-      activeIndex: null,
-      isHeapified: true // Flag to indicate this is now a heap
-    });
-    descriptions.push(`${this.type === 'max' ? 'Max' : 'Min'} heap built from the array`);
-    
-    // Create a copy of the sorted result that will be in the correct order
-    // For max heap: descending order, for min heap: ascending order
-    const sortedResult = [...result];
+    // Build max heap first
+    const buildSteps = this.buildHeap();
+    steps.push(...buildSteps);
     
     // Extract elements one by one
-    for (let i = heapSize - 1; i > 0; i--) {
-      // Swap root with last element
-      [result[0], result[i]] = [result[i], result[0]];
-      
-      // After swap
+    for (let i = n - 1; i > 0; i--) {
       steps.push({
-        heap: [...result.slice(0, i)],
-        sorted: [...result.slice(i)],
+        heap: [...this.heap],
         activeIndex: 0,
-        isHeapified: true
+        sorted: this.heap.slice(i + 1),
+        isComplete: false
       });
-      descriptions.push(`Swap root (${result[i]}) with last element of heap (${result[0]})`);
       
-      // Heapify the reduced heap
-      this.heapifyDownInPlace(result, 0, i, this.type);
+      this.swap(0, i);
       
-      // After heapify
       steps.push({
-        heap: [...result.slice(0, i)],
-        sorted: [...result.slice(i)],
-        activeIndex: null,
-        isHeapified: true
+        heap: [...this.heap],
+        activeIndex: i,
+        sorted: this.heap.slice(i),
+        isComplete: false
       });
-      descriptions.push(`Heapify the reduced heap of size ${i}`);
+      
+      this.heapifyDown(0, i, steps);
     }
     
-    // Final sorted array
+    // Add final sorted state
     steps.push({
-      heap: [],
-      sorted: [...result],
+      heap: [...this.heap],
       activeIndex: null,
-      isHeapified: true
+      sorted: [...this.heap],
+      isComplete: true
     });
-    descriptions.push("Heap sort complete");
     
-    // For min heap, we need to reverse the result to get ascending order
-    if (this.type === "min") {
-      // Reverse the sorted portion in each step that has sorted elements
-      for (let i = 2; i < steps.length; i++) {
-        if (steps[i].sorted.length > 0) {
-          // For min heap, we need to reverse the sorted portion to get ascending order
-          steps[i].sorted = [...steps[i].sorted].reverse();
-        }
-      }
-    }
-    
-    return { result: this.type === "min" ? sortedResult.reverse() : sortedResult, steps, descriptions };
-  }
-  
-  // Heapify down in-place for a specific array (used in heap sort)
-  heapifyDownInPlace(arr, index, size, type) {
-    let largest = index;
-    const left = 2 * index + 1;
-    const right = 2 * index + 2;
-    
-    // Compare with left child
-    if (left < size) {
-      if ((type === "max" && arr[left] > arr[largest]) ||
-          (type === "min" && arr[left] < arr[largest])) {
-        largest = left;
-      }
-    }
-    
-    // Compare with right child
-    if (right < size) {
-      if ((type === "max" && arr[right] > arr[largest]) ||
-          (type === "min" && arr[right] < arr[largest])) {
-        largest = right;
-      }
-    }
-    
-    // If largest is not the current index, swap and continue heapifying
-    if (largest !== index) {
-      [arr[index], arr[largest]] = [arr[largest], arr[index]];
-      this.heapifyDownInPlace(arr, largest, size, type);
-    }
+    return { steps };
   }
   
   // Get current heap array (useful for visualization)

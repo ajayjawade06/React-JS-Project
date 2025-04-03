@@ -23,7 +23,7 @@ function App() {
             </div>
             <div className="flex items-center space-x-4">
               <a 
-                href="https://github.com/yourusername/heap-sort-visualizer" 
+                href="https://github.com/ajayjawade06/React-JS-Project/tree/main/Heap%20Sort/heap-visualizer" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className={`p-2 rounded-lg transition-colors duration-300 ${
